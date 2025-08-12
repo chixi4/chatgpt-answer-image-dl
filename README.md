@@ -82,7 +82,7 @@
 
 ```
 chatgpt-answer-image-dl/
-├─ ChatGPT 下载回答图片.user.js 或 chatgpt-answer-image.user.js
+├─ ChatGPT 下载回答图片.user.js
 ├─ LICENSE
 └─ README.md
 ```
