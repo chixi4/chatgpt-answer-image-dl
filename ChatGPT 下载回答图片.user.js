@@ -92,7 +92,7 @@
     label.textContent = text;
   }
 
-  // 替换顶部图标为“图片”图标，保持原宽高与 class
+  // 替换顶部图标为“图片”图标，保持原宽高与 classs
   function setDownloadIconLikeCopy(btn) {
     const svg = btn.querySelector('svg');
     if (!svg) return;
