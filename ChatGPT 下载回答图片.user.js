@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT 回答图片分享
 // @namespace    https://github.com/chixi4/chatgpt-answer-image-dl
-// @version      1.0.1
+// @version      1.0.0
 // @description  在 ChatGPT “共享”里，点击“下载图片”
 // @author       Chixi
 // @license      MIT
