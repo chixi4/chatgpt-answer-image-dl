@@ -12,8 +12,8 @@
 // @grant        GM_download
 // @run-at       document-idle
 // @noframes
-// @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
-// @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
+// @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js
+// @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js
 // ==/UserScript==
 
 
