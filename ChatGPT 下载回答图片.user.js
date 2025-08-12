@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ChatGPT 回答图片分享
 // @namespace    https://github.com/chixi4/chatgpt-answer-image-dl
-// @version      1.1.0
-// @description  在 ChatGPT “共享”里，点击“下载图片”
+// @version      1.2.0
+// @description  在 ChatGPT “共享”里，点击“下载图片”。此版本优化了执行时机，以避免 React 水合错误。
 // @author       Chixi
 // @license      MIT
 // @match        https://chatgpt.com/c/*
@@ -12,8 +12,8 @@
 // @grant        GM_download
 // @run-at       document-idle
 // @noframes
-// @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js
-// @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js
+// @downloadURL https://update.greasyfork.org/scripts/545548/ChatGPT%20%E5%9B%9E%E7%AD%94%E5%9B%BE%E7%89%87%E5%88%86%E4%BA%AB.user.js
+// @updateURL https://update.greasyfork.org/scripts/545548/ChatGPT%20%E5%9B%9E%E7%AD%94%E5%9B%BE%E7%89%87%E5%88%86%E4%BA%AB.meta.js
 // ==/UserScript==
 
 (function () {
@@ -180,12 +180,18 @@
 
   // ---- 安全调度：把 DOM 改动挪到水合之后 ----
   const schedule = (cb) => {
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => requestAnimationFrame(cb), { timeout: 1000 });
-    } else {
-      // 退化：用一次宏任务 + 一次绘制周期
-      setTimeout(() => requestAnimationFrame(cb), 120);
-    }
+    // 【核心修改】增加一个足够的延迟 (350ms) 来大概率跳过 React 的水合阶段。
+    // 这是为了避免脚本在 React 完成初始页面构建前修改 DOM，从而引发 #418 错误。
+    // 这是一个务实的折衷方案，在不显著影响用户体验的情况下，极大地提高了稳定性。
+    setTimeout(() => {
+      // 原始逻辑：在空闲时或下一帧执行，这个逻辑本身是好的，予以保留。
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(cb, { timeout: 1000 });
+      } else {
+        // 退化：用一次宏任务 + 一次绘制周期
+        setTimeout(() => requestAnimationFrame(cb), 120);
+      }
+    }, 350);
   };
 
   // ---- 插入按钮（带一次性哨兵，避免重复） ----
