@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         ChatGPT 回答图片分享
 // @namespace    https://github.com/chixi4/chatgpt-answer-image-dl
-// @version      1.0.0
+// @version      1.0.1
 // @description  在 ChatGPT “共享”里，点击“下载图片”
 // @author       Chixi
 // @license      MIT
-// @match        https://chatgpt.com/c/*
-// @match        https://chat.openai.com/c/*
+// @match        https://chatgpt.com/*
+// @match        https://chat.openai.com/*
 // @require      https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.min.js
 // @grant        GM_addStyle
 // @grant        GM_download
@@ -16,7 +16,6 @@
 // @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
 // ==/UserScript==
 
-
 (function () {
   'use strict';
 
@@ -25,14 +24,12 @@
   const CARD_SELECTOR = '[data-testid="sharing-post-unfurl-view"]';
 
   GM_addStyle(`
-    /* 仅作用于离屏克隆（不影响页面真实样式） */
     .unlock-for-capture .aspect-\\[1200\\/630\\] { aspect-ratio: auto !important; height: auto !important; }
     .unlock-for-capture ${CARD_SELECTOR} { height: auto !important; }
     .unlock-for-capture .rounded-b-3xl.overflow-hidden { overflow: visible !important; }
     .unlock-for-capture .absolute.bg-gradient-to-t { display: none !important; }
     .__offscreen_capture_root__ { position: fixed !important; top: -100000px !important; left: -100000px !important; z-index: -1 !important; }
 
-    /* 轻量 Toast，用于顶部反馈 */
     .__dl_toast_host { position:fixed; top:12px; left:0; right:0; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; z-index:2147483647; }
     .__dl_toast_core {
       display:inline-flex; align-items:center; gap:8px;
@@ -42,11 +39,9 @@
     }
     .__dl_toast_core.show { transform:translateY(0); opacity:1; }
 
-    /* 禁用态外观（兼容 role=button 的 div） */
     .__dl_final_btn__[disabled] { opacity:.5; pointer-events:none; }
   `);
 
-  // 顶部轻量提示
   function showToast(message) {
     let host = document.querySelector('.__dl_toast_host');
     if (!host) {
@@ -62,7 +57,6 @@
     setTimeout(() => { toast.classList.remove('show'); toast.addEventListener('transitionend', () => toast.remove()); }, 2000);
   }
 
-  // 生成文件名：优先使用弹窗标题
   function makeFilename(dlg) {
     const ts = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -71,7 +65,6 @@
     return `${title}_${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}.png`;
   }
 
-  // 创建离屏克隆，挂载到文档外
   function createOffscreenClone(sourceDialog) {
     const offscreenRoot = document.createElement('div');
     offscreenRoot.className = '__offscreen_capture_root__';
@@ -82,7 +75,6 @@
     return { offscreenRoot, clonedDialog };
   }
 
-  // 设置按钮底部文字（尽量命中“复制链接”同款容器）
   function setButtonLabel(btn, text) {
     let label =
       btn.querySelector('.w-full.text-center.text-xs') ||
@@ -92,7 +84,6 @@
     label.textContent = text;
   }
 
-  // 替换顶部图标为“图片”图标，保持原宽高与 class
   function setDownloadIconLikeCopy(btn) {
     const svg = btn.querySelector('svg');
     if (!svg) return;
@@ -108,14 +99,46 @@
     svg.innerHTML = `<path fill="currentColor" d="M8.759 3h6.482c.805 0 1.47 0 2.01.044.563.046 1.08.145 1.565.392a4 4 0 0 1 1.748 1.748c.247.485.346 1.002.392 1.564C21 7.29 21 7.954 21 8.758v6.483c0 .805 0 1.47-.044 2.01-.046.563-.145 1.08-.392 1.565a4 4 0 0 1-1.748 1.748c-.485.247-1.002.346-1.564.392-.541.044-1.206.044-2.01.044H8.758c-.805 0-1.47 0-2.01-.044-.563-.046-1.08-.145-1.565-.392a4 4 0 0 1-1.748-1.748c-.247-.485-.346-1.002-.392-1.564C3 16.71 3 16.046 3 15.242V8.758c0-.805 0-1.47.044-2.01.046-.563.145-1.08.392-1.565a4 4 0 0 1 1.748-1.748c.485-.247 1.002-.346 1.564-.392C7.29 3 7.954 3 8.758 3M6.91 5.038c-.438.035-.663.1-.819.18a2 2 0 0 0-.874.874c-.08.156-.145.38-.18.819C5 7.361 5 7.943 5 8.8v4.786l.879-.879a3 3 0 0 1 4.242 0l6.286 6.286c.261-.005.484-.014.682-.03.438-.036.663-.101.819-.181a2 2 0 0 0 .874-.874c.08-.156.145-.38.18-.819.037-.45.038-1.032.038-1.889V8.8c0-.857 0-1.439-.038-1.889-.035-.438-.1-.663-.18-.819a2 2 0 0 0-.874-.874c-.156-.08-.38-.145-.819-.18C16.639 5 16.057 5 15.2 5H8.8c-.857 0-1.439 0-1.889.038M13.586 19l-4.879-4.879a1 1 0 0 0-1.414 0l-2.286 2.286c.005.261.014.484.03.682.036.438.101.663.181.819a2 2 0 0 0 .874.874c.156.08.38.145.819.18C7.361 19 7.943 19 8.8 19zM14.5 8.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-3 1a3 3 0 1 1 6 0 3 3 0 0 1-6 0"></path>`;
   }
 
+  // —— 新增：跨语言查找共享弹窗 & “复制链接”按钮 ——
+  function findShareDialog() {
+    const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')];
+    for (const d of dialogs) {
+      if (d.querySelector(CARD_SELECTOR)) return d; // 有共享预览卡片就确定是共享弹窗
+      const linkInput = d.querySelector('input[type="text"],input[readonly],input');
+      const val = linkInput?.value || '';
+      if (/chatgpt\.com\/share\/|chat\.openai\.com\/share\//i.test(val)) return d;
+      const hasShareTestId = [...d.querySelectorAll('[data-testid]')].some(n => /share/i.test(n.getAttribute('data-testid') || ''));
+      if (hasShareTestId) return d;
+    }
+    return null;
+  }
+
+  function findCopyButton(root) {
+    // 1) 优先 data-testid / aria-label
+    const byTestId = root.querySelector('[data-testid*="copy" i],[data-testid*="share-copy" i]');
+    if (byTestId) return byTestId.closest('button,[role="button"]') || byTestId;
+    const byAria = [...root.querySelectorAll('[aria-label]')].find(el => /copy/i.test(el.getAttribute('aria-label') || ''));
+    if (byAria) return byAria.closest('button,[role="button"]') || byAria;
+
+    // 2) 兜底多语种文案
+    const patterns = [
+      '复制链接','Copy link','リンクをコピー','링크 복사',
+      'Copiar enlace','Copiar link','Copiar vínculo','Copier le lien','Kopieren'
+    ].map(s => new RegExp(s, 'i'));
+    const candidates = [...root.querySelectorAll('button,[role="button"]')];
+    const btn = candidates.find(b => patterns.some(re => re.test((b.textContent || '').trim())));
+    if (btn) return btn;
+
+    // 3) 实在找不到，就用第一个按钮当参照（仍可插入）
+    return root.querySelector('button,[role="button"]');
+  }
+
   async function captureAndDownload(btn, dlg) {
-    // 置为禁用并保持底部文字
     btn.setAttribute('disabled', 'true');
     setButtonLabel(btn, ORIGINAL_LABEL);
     let offscreenRoot = null;
 
     try {
-      // 等待字体与下一帧布局稳定
       if (document.fonts?.ready) { await document.fonts.ready; }
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -125,14 +148,16 @@
       const clonedCard = offscreenRoot.querySelector(CARD_SELECTOR);
       if (!clonedCard) throw new Error('未找到共享链接预览卡片');
 
-      // 适度增补下边距，避免截断圆角阴影
       const inner = offscreenRoot.querySelector('.rounded-b-3xl.p-5');
       if (inner) inner.style.padding = '20px 20px 40px 20px';
 
       const w = Math.ceil(clonedCard.scrollWidth || clonedCard.getBoundingClientRect().width || 1200);
       const h = Math.ceil(clonedCard.scrollHeight || clonedCard.getBoundingClientRect().height || 630);
 
-      const blob = await window.htmlToImage.toBlob(clonedCard, {
+      const h2i = (typeof htmlToImage !== 'undefined' ? htmlToImage : (window.htmlToImage || null));
+      if (!h2i) throw new Error('html-to-image 未加载');
+
+      const blob = await h2i.toBlob(clonedCard, {
         pixelRatio: Math.max(2, window.devicePixelRatio || 1),
         cacheBust: true,
         backgroundColor: null,
@@ -149,24 +174,41 @@
       if (!blob) throw new Error('生成图片失败：返回空 Blob');
 
       const url = URL.createObjectURL(blob);
-      GM_download({
-        url,
-        name: makeFilename(dlg),
-        saveAs: true,
-        onload: () => {
-          URL.revokeObjectURL(url);
-          btn.removeAttribute('disabled');
-          setButtonLabel(btn, '图片已下载！');
-          showToast('图片已下载！');
-          setTimeout(() => setButtonLabel(btn, ORIGINAL_LABEL), REVERT_MS);
-        },
-        onerror: (err) => {
-          console.error('GM_download error:', err);
-          btn.removeAttribute('disabled');
-          setButtonLabel(btn, ORIGINAL_LABEL);
-          showToast('下载失败，查看控制台了解详情');
-        }
-      });
+      const filename = makeFilename(dlg);
+
+      if (typeof GM_download === 'function') {
+        GM_download({
+          url,
+          name: filename,
+          saveAs: true,
+          onload: () => {
+            URL.revokeObjectURL(url);
+            btn.removeAttribute('disabled');
+            setButtonLabel(btn, '图片已下载！');
+            showToast('图片已下载！');
+            setTimeout(() => setButtonLabel(btn, ORIGINAL_LABEL), REVERT_MS);
+          },
+          onerror: (err) => {
+            console.error('GM_download error:', err);
+            btn.removeAttribute('disabled');
+            setButtonLabel(btn, ORIGINAL_LABEL);
+            showToast('下载失败，查看控制台了解详情');
+          }
+        });
+      } else {
+        // 兜底
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        btn.removeAttribute('disabled');
+        setButtonLabel(btn, '图片已下载！');
+        showToast('图片已下载！');
+        setTimeout(() => setButtonLabel(btn, ORIGINAL_LABEL), REVERT_MS);
+      }
     } catch (err) {
       console.error('截图失败:', err);
       btn.removeAttribute('disabled');
@@ -179,26 +221,18 @@
   }
 
   function tryInsertButton() {
-    // 锚定共享链接弹窗
-    const dlg = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')]
-      .find(d => /共享链接|Share link/i.test(d.textContent || ''));
+    const dlg = findShareDialog();
     if (!dlg || dlg.querySelector('.__dl_final_btn__')) return;
 
-    // 定位“复制链接”按钮作为参考
-    const copyBtn = [...dlg.querySelectorAll('button,[role="button"]')]
-      .find(b => /复制链接|Copy link/i.test((b.textContent || '').trim()));
+    const copyBtn = findCopyButton(dlg);
     if (!copyBtn) return;
 
-    // 克隆参考按钮，保持布局尺寸一致
     const btn = copyBtn.cloneNode(true);
     btn.classList.add('__dl_final_btn__');
     btn.setAttribute('type', 'button');
 
-    // 替换图标与文案
     setDownloadIconLikeCopy(btn);
     setButtonLabel(btn, ORIGINAL_LABEL);
-
-    // 与参考按钮保持垂直间距
     btn.style.marginBottom = '8px';
 
     btn.addEventListener('click', (e) => {
@@ -206,7 +240,9 @@
       captureAndDownload(btn, dlg);
     });
 
-    copyBtn.parentElement.insertBefore(btn, copyBtn);
+    // 插到“复制链接”按钮前；如果没有明确父节点，则插在对话框里第一个按钮前
+    const parent = copyBtn.parentElement || dlg;
+    parent.insertBefore(btn, copyBtn);
   }
 
   const observer = new MutationObserver(tryInsertButton);
