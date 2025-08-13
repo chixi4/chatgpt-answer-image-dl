@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ChatGPT 回答图片分享
 // @namespace    https://github.com/chixi4/chatgpt-answer-image-dl
-// @version      1.2.0
-// @description  在 ChatGPT “共享”里，点击“下载图片”。此版本优化了执行时机，以避免 React 水合错误。
+// @version      1.0.0
+// @description  在 ChatGPT “共享”里，点击“下载图片”
 // @author       Chixi
 // @license      MIT
 // @match        https://chatgpt.com/c/*
@@ -12,9 +12,10 @@
 // @grant        GM_download
 // @run-at       document-idle
 // @noframes
-// @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20%E5%9B%9E%E7%AD%94%E5%9B%BE%E7%89%87%E5%88%86%E4%BA%AB.user.js
-// @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20%E5%9B%9E%E7%AD%94%E5%9B%BE%E7%89%87%E5%88%86%E4%BA%AB.user.js
+// @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
+// @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
 // ==/UserScript==
+
 
 (function () {
   'use strict';
@@ -23,7 +24,6 @@
   const ORIGINAL_LABEL = '下载图片';
   const CARD_SELECTOR = '[data-testid="sharing-post-unfurl-view"]';
 
-  // ---- 样式：离屏克隆与 Toast ----
   GM_addStyle(`
     /* 仅作用于离屏克隆（不影响页面真实样式） */
     .unlock-for-capture .aspect-\\[1200\\/630\\] { aspect-ratio: auto !important; height: auto !important; }
@@ -46,7 +46,7 @@
     .__dl_final_btn__[disabled] { opacity:.5; pointer-events:none; }
   `);
 
-  // ---- 顶部提示 ----
+  // 顶部轻量提示
   function showToast(message) {
     let host = document.querySelector('.__dl_toast_host');
     if (!host) {
@@ -62,7 +62,7 @@
     setTimeout(() => { toast.classList.remove('show'); toast.addEventListener('transitionend', () => toast.remove()); }, 2000);
   }
 
-  // ---- 文件名：优先弹窗标题 ----
+  // 生成文件名：优先使用弹窗标题
   function makeFilename(dlg) {
     const ts = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -71,7 +71,7 @@
     return `${title}_${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}.png`;
   }
 
-  // ---- 离屏克隆 ----
+  // 创建离屏克隆，挂载到文档外
   function createOffscreenClone(sourceDialog) {
     const offscreenRoot = document.createElement('div');
     offscreenRoot.className = '__offscreen_capture_root__';
@@ -82,7 +82,7 @@
     return { offscreenRoot, clonedDialog };
   }
 
-  // ---- 按钮文案 ----
+  // 设置按钮底部文字（尽量命中“复制链接”同款容器）
   function setButtonLabel(btn, text) {
     let label =
       btn.querySelector('.w-full.text-center.text-xs') ||
@@ -92,7 +92,7 @@
     label.textContent = text;
   }
 
-  // ---- 替换图标为“图片”图标 ----
+  // 替换顶部图标为“图片”图标，保持原宽高与 class
   function setDownloadIconLikeCopy(btn) {
     const svg = btn.querySelector('svg');
     if (!svg) return;
@@ -108,15 +108,15 @@
     svg.innerHTML = `<path fill="currentColor" d="M8.759 3h6.482c.805 0 1.47 0 2.01.044.563.046 1.08.145 1.565.392a4 4 0 0 1 1.748 1.748c.247.485.346 1.002.392 1.564C21 7.29 21 7.954 21 8.758v6.483c0 .805 0 1.47-.044 2.01-.046.563-.145 1.08-.392 1.565a4 4 0 0 1-1.748 1.748c-.485.247-1.002.346-1.564.392-.541.044-1.206.044-2.01.044H8.758c-.805 0-1.47 0-2.01-.044-.563-.046-1.08-.145-1.565-.392a4 4 0 0 1-1.748-1.748c-.247-.485-.346-1.002-.392-1.564C3 16.71 3 16.046 3 15.242V8.758c0-.805 0-1.47.044-2.01.046-.563.145-1.08.392-1.565a4 4 0 0 1 1.748-1.748c.485-.247 1.002-.346 1.564-.392C7.29 3 7.954 3 8.758 3M6.91 5.038c-.438.035-.663.1-.819.18a2 2 0 0 0-.874.874c-.08.156-.145.38-.18.819C5 7.361 5 7.943 5 8.8v4.786l.879-.879a3 3 0 0 1 4.242 0l6.286 6.286c.261-.005.484-.014.682-.03.438-.036.663-.101.819-.181a2 2 0 0 0 .874-.874c.08-.156.145-.38.18-.819.037-.45.038-1.032.038-1.889V8.8c0-.857 0-1.439-.038-1.889-.035-.438-.1-.663-.18-.819a2 2 0 0 0-.874-.874c-.156-.08-.38-.145-.819-.18C16.639 5 16.057 5 15.2 5H8.8c-.857 0-1.439 0-1.889.038M13.586 19l-4.879-4.879a1 1 0 0 0-1.414 0l-2.286 2.286c.005.261.014.484.03.682.036.438.101.663.181.819a2 2 0 0 0 .874.874c.156.08.38.145.819.18C7.361 19 7.943 19 8.8 19zM14.5 8.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-3 1a3 3 0 1 1 6 0 3 3 0 0 1-6 0"></path>`;
   }
 
-  // ---- 截图并下载 ----
   async function captureAndDownload(btn, dlg) {
+    // 置为禁用并保持底部文字
     btn.setAttribute('disabled', 'true');
     setButtonLabel(btn, ORIGINAL_LABEL);
     let offscreenRoot = null;
 
     try {
+      // 等待字体与下一帧布局稳定
       if (document.fonts?.ready) { await document.fonts.ready; }
-      // 双 rAF：等一帧布局稳定
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
       const { offscreenRoot: root } = createOffscreenClone(dlg);
@@ -178,39 +178,27 @@
     }
   }
 
-  // ---- 安全调度：把 DOM 改动挪到水合之后 ----
-  const schedule = (cb) => {
-    // 【核心修改】增加一个足够的延迟 (350ms) 来大概率跳过 React 的水合阶段。
-    // 这是为了避免脚本在 React 完成初始页面构建前修改 DOM，从而引发 #418 错误。
-    // 这是一个务实的折衷方案，在不显著影响用户体验的情况下，极大地提高了稳定性。
-    setTimeout(() => {
-      // 原始逻辑：在空闲时或下一帧执行，这个逻辑本身是好的，予以保留。
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(cb, { timeout: 1000 });
-      } else {
-        // 退化：用一次宏任务 + 一次绘制周期
-        setTimeout(() => requestAnimationFrame(cb), 120);
-      }
-    }, 350);
-  };
-
-  // ---- 插入按钮（带一次性哨兵，避免重复） ----
   function tryInsertButton() {
-    const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')];
-    const dlg = dialogs.find(d => /共享链接|Share link/i.test(d.textContent || ''));
-    if (!dlg || dlg.__dl_injected__) return;
+    // 锚定共享链接弹窗
+    const dlg = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')]
+      .find(d => /共享链接|Share link/i.test(d.textContent || ''));
+    if (!dlg || dlg.querySelector('.__dl_final_btn__')) return;
 
+    // 定位“复制链接”按钮作为参考
     const copyBtn = [...dlg.querySelectorAll('button,[role="button"]')]
       .find(b => /复制链接|Copy link/i.test((b.textContent || '').trim()));
     if (!copyBtn) return;
 
-    dlg.__dl_injected__ = true; // 哨兵：标记已插入
-
+    // 克隆参考按钮，保持布局尺寸一致
     const btn = copyBtn.cloneNode(true);
     btn.classList.add('__dl_final_btn__');
     btn.setAttribute('type', 'button');
+
+    // 替换图标与文案
     setDownloadIconLikeCopy(btn);
     setButtonLabel(btn, ORIGINAL_LABEL);
+
+    // 与参考按钮保持垂直间距
     btn.style.marginBottom = '8px';
 
     btn.addEventListener('click', (e) => {
@@ -218,27 +206,10 @@
       captureAndDownload(btn, dlg);
     });
 
-    // 进一步把真正的 DOM 插入安排到下一帧，减少与 React 后续微任务冲突
-    requestAnimationFrame(() => {
-      // 防止父节点已被替换
-      if (copyBtn.parentElement) {
-        copyBtn.parentElement.insertBefore(btn, copyBtn);
-      } else {
-        // 回退：直接附加到弹窗末尾
-        dlg.appendChild(btn);
-      }
-    });
+    copyBtn.parentElement.insertBefore(btn, copyBtn);
   }
 
-  // ---- MutationObserver：仅做调度，不直接改 DOM ----
-  let pending = false;
-  const observer = new MutationObserver(() => {
-    if (pending) return;
-    pending = true;
-    schedule(() => { pending = false; tryInsertButton(); });
-  });
+  const observer = new MutationObserver(tryInsertButton);
   observer.observe(document.documentElement, { childList: true, subtree: true });
-
-  // 首次尝试（延后到空闲）
-  schedule(tryInsertButton);
+  tryInsertButton();
 })();
