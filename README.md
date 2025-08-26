@@ -87,6 +87,15 @@ chatgpt-answer-image-dl/
 └─ README.md
 ```
 
+v1.1更新：增加了对携带图片的回答的支持：
+
+
+首次使用会弹出这个：
+
+<img width="2432" height="1432" alt="屏幕截图 2025-08-26 190305" src="https://github.com/user-attachments/assets/75c4abc4-d43e-44d5-9fcd-6c26c1c2cb5a" />
+
+点击“总是允许此域名”
+
 ## 许可证
 
 MIT
