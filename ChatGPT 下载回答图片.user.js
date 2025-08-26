@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ChatGPT 回答图片分享
 // @namespace    https://github.com/chixi4/chatgpt-answer-image-dl
-// @version      1.0.1
-// @description  在 ChatGPT “共享”里，点击“下载图片”
+// @version      1.1.0
+// @description  在 ChatGPT “共享”里，点击“下载图片”。修复含外链图片导致的截图灰块/失败问题
 // @author       Chixi
 // @license      MIT
 // @match        https://chatgpt.com/*
@@ -10,6 +10,8 @@
 // @require      https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.min.js
 // @grant        GM_addStyle
 // @grant        GM_download
+// @grant        GM_xmlhttpRequest
+// @connect      *
 // @run-at       document-idle
 // @noframes
 // @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
@@ -22,6 +24,10 @@
   const REVERT_MS = 2000;
   const ORIGINAL_LABEL = '下载图片';
   const CARD_SELECTOR = '[data-testid="sharing-post-unfurl-view"]';
+
+  // 透明 1×1 PNG 占位
+  const TRANSPARENT_PX =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
   GM_addStyle(`
     .unlock-for-capture .aspect-\\[1200\\/630\\] { aspect-ratio: auto !important; height: auto !important; }
@@ -99,11 +105,11 @@
     svg.innerHTML = `<path fill="currentColor" d="M8.759 3h6.482c.805 0 1.47 0 2.01.044.563.046 1.08.145 1.565.392a4 4 0 0 1 1.748 1.748c.247.485.346 1.002.392 1.564C21 7.29 21 7.954 21 8.758v6.483c0 .805 0 1.47-.044 2.01-.046.563-.145 1.08-.392 1.565a4 4 0 0 1-1.748 1.748c-.485.247-1.002.346-1.564.392-.541.044-1.206.044-2.01.044H8.758c-.805 0-1.47 0-2.01-.044-.563-.046-1.08-.145-1.565-.392a4 4 0 0 1-1.748-1.748c-.247-.485-.346-1.002-.392-1.564C3 16.71 3 16.046 3 15.242V8.758c0-.805 0-1.47.044-2.01.046-.563.145-1.08.392-1.565a4 4 0 0 1 1.748-1.748c.485-.247 1.002-.346 1.564-.392C7.29 3 7.954 3 8.758 3M6.91 5.038c-.438.035-.663.1-.819.18a2 2 0 0 0-.874.874c-.08.156-.145.38-.18.819C5 7.361 5 7.943 5 8.8v4.786l.879-.879a3 3 0 0 1 4.242 0l6.286 6.286c.261-.005.484-.014.682-.03.438-.036.663-.101.819-.181a2 2 0 0 0 .874-.874c.08-.156.145-.38.18-.819.037-.45.038-1.032.038-1.889V8.8c0-.857 0-1.439-.038-1.889-.035-.438-.1-.663-.18-.819a2 2 0 0 0-.874-.874c-.156-.08-.38-.145-.819-.18C16.639 5 16.057 5 15.2 5H8.8c-.857 0-1.439 0-1.889.038M13.586 19l-4.879-4.879a1 1 0 0 0-1.414 0l-2.286 2.286c.005.261.014.484.03.682.036.438.101.663.181.819a2 2 0 0 0 .874.874c.156.08.38.145.819.18C7.361 19 7.943 19 8.8 19zM14.5 8.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-3 1a3 3 0 1 1 6 0 3 3 0 0 1-6 0"></path>`;
   }
 
-  // —— 新增：跨语言查找共享弹窗 & “复制链接”按钮 ——
+  // 跨语言查找共享弹窗与“复制链接”按钮
   function findShareDialog() {
     const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')];
     for (const d of dialogs) {
-      if (d.querySelector(CARD_SELECTOR)) return d; // 有共享预览卡片就确定是共享弹窗
+      if (d.querySelector(CARD_SELECTOR)) return d;
       const linkInput = d.querySelector('input[type="text"],input[readonly],input');
       const val = linkInput?.value || '';
       if (/chatgpt\.com\/share\/|chat\.openai\.com\/share\//i.test(val)) return d;
@@ -114,23 +120,124 @@
   }
 
   function findCopyButton(root) {
-    // 1) 优先 data-testid / aria-label
     const byTestId = root.querySelector('[data-testid*="copy" i],[data-testid*="share-copy" i]');
     if (byTestId) return byTestId.closest('button,[role="button"]') || byTestId;
     const byAria = [...root.querySelectorAll('[aria-label]')].find(el => /copy/i.test(el.getAttribute('aria-label') || ''));
     if (byAria) return byAria.closest('button,[role="button"]') || byAria;
 
-    // 2) 兜底多语种文案
-    const patterns = [
-      '复制链接','Copy link','リンクをコピー','링크 복사',
-      'Copiar enlace','Copiar link','Copiar vínculo','Copier le lien','Kopieren'
-    ].map(s => new RegExp(s, 'i'));
+    const patterns = ['复制链接','Copy link','リンクをコピー','링크 복사','Copiar enlace','Copiar link','Copiar vínculo','Copier le lien','Kopieren'].map(s => new RegExp(s, 'i'));
     const candidates = [...root.querySelectorAll('button,[role="button"]')];
     const btn = candidates.find(b => patterns.some(re => re.test((b.textContent || '').trim())));
     if (btn) return btn;
 
-    // 3) 实在找不到，就用第一个按钮当参照（仍可插入）
     return root.querySelector('button,[role="button"]');
+  }
+
+  // —— 工具：把 Blob 转为 data:URL
+  function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  // —— 工具：按域名选择合适的 Referer 以减少防盗链
+  function pickReferer(u) {
+    try {
+      const h = new URL(u).hostname;
+      if (h.endsWith('bing.net') || h.endsWith('microsoft.com')) return 'https://www.bing.com/';
+      if (h.endsWith('baidu.com')) return 'https://baike.baidu.com/';
+    } catch {}
+    return '';
+  }
+
+  // —— 工具：扩展层抓取并直接返回 data:URL
+  function fetchAsDataURL(url) {
+    const referer = pickReferer(url);
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url,
+        responseType: 'blob',
+        timeout: 20000,
+        headers: referer ? { 'Referer': referer } : {},
+        onload: async (res) => {
+          if (res.status >= 200 && res.status < 300 && res.response) {
+            try { resolve(await blobToDataURL(res.response)); }
+            catch (e) { reject(e); }
+          } else {
+            reject(new Error(`HTTP ${res.status}`));
+          }
+        },
+        onerror: reject,
+        ontimeout: () => reject(new Error('timeout'))
+      });
+    });
+  }
+
+  // —— 把克隆节点里的 <img> 统一转为 data:URL，避免二次抓取
+  async function deCrossOriginAllImages(scopeEl, transparentPx) {
+    const imgs = Array.from(scopeEl.querySelectorAll('img'));
+    if (!imgs.length) return;
+
+    await Promise.all(imgs.map(async (img) => {
+      try {
+        img.setAttribute('referrerpolicy', 'no-referrer');
+        img.setAttribute('crossorigin', 'anonymous');
+
+        const altUrl = (img.getAttribute('alt') || '').trim();
+        const srcUrl = (img.getAttribute('src') || '').trim();
+        const url = /^https?:\/\//i.test(altUrl) ? altUrl : srcUrl;
+
+        if (!url || url.startsWith('data:')) return;
+
+        const dataUrl = await fetchAsDataURL(url);
+        await new Promise((resolve, reject) => {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', reject, { once: true });
+          img.src = dataUrl;
+        });
+        if (img.decode) { try { await img.decode(); } catch {} }
+      } catch {
+        // 兜底，避免阻断截图
+        img.src = transparentPx;
+      }
+    }));
+  }
+
+  // —— 把 background-image 的 url(...) 转为 data:URL 并回写到内联样式
+  async function inlineBackgroundImages(scopeEl) {
+    const nodes = Array.from(scopeEl.querySelectorAll('*'));
+    const urlRe = /url\(["']?([^"')]+)["']?\)/gi;
+
+    await Promise.all(nodes.map(async (el) => {
+      const cs = getComputedStyle(el);
+      const bg = cs.backgroundImage;
+      if (!bg || bg === 'none') return;
+
+      const tasks = [];
+      bg.replace(urlRe, (_m, u) => {
+        const url = String(u || '').trim();
+        if (!/^https?:\/\//i.test(url)) return _m; // 已是 data: 或相对路径不处理
+        tasks.push((async () => {
+          try {
+            const dataUrl = await fetchAsDataURL(url);
+            return `url("${dataUrl}")`;
+          } catch {
+            return 'none';
+          }
+        })());
+        return _m;
+      });
+
+      if (!tasks.length) return;
+      const parts = await Promise.all(tasks);
+      let i = 0;
+      const newBg = bg.replace(urlRe, () => parts[i++] || 'none');
+      el.style.backgroundImage = newBg;
+    }));
   }
 
   async function captureAndDownload(btn, dlg) {
@@ -151,6 +258,10 @@
       const inner = offscreenRoot.querySelector('.rounded-b-3xl.p-5');
       if (inner) inner.style.padding = '20px 20px 40px 20px';
 
+      // 关键：先把所有图片、背景图转为 data:URL，再截图
+      await deCrossOriginAllImages(clonedCard, TRANSPARENT_PX);
+      await inlineBackgroundImages(clonedCard);
+
       const w = Math.ceil(clonedCard.scrollWidth || clonedCard.getBoundingClientRect().width || 1200);
       const h = Math.ceil(clonedCard.scrollHeight || clonedCard.getBoundingClientRect().height || 630);
 
@@ -163,6 +274,7 @@
         backgroundColor: null,
         width: w,
         height: h,
+        imagePlaceholder: TRANSPARENT_PX,
         filter: (node) => {
           const el = node;
           if (el?.classList?.contains('bg-gradient-to-t')) return false;
@@ -196,7 +308,6 @@
           }
         });
       } else {
-        // 兜底
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
@@ -209,6 +320,7 @@
         showToast('图片已下载！');
         setTimeout(() => setButtonLabel(btn, ORIGINAL_LABEL), REVERT_MS);
       }
+
     } catch (err) {
       console.error('截图失败:', err);
       btn.removeAttribute('disabled');
@@ -240,7 +352,6 @@
       captureAndDownload(btn, dlg);
     });
 
-    // 插到“复制链接”按钮前；如果没有明确父节点，则插在对话框里第一个按钮前
     const parent = copyBtn.parentElement || dlg;
     parent.insertBefore(btn, copyBtn);
   }
