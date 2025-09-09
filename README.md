@@ -2,38 +2,13 @@
 
 一个 Tampermonkey（油猴）脚本，在 ChatGPT 网页的分享弹窗中新增下载图片按钮，把当前回答以官方排版导出为图片，便于在无法访问分享链接或仅允许上传截图的平台分发与归档。
 
-## 适用动机
-
-* 分享链接在部分网络环境下不可达。
-* 复制 Markdown 到第三方平台容易出现样式错乱。
-* 许多网站只允许上传截图而不允许粘贴 AI 文本。
-* 希望保留官方排版的观感，做到所见即所得。
-
-## 功能特性
-
-* 在分享弹窗内新增一个与复制链接同版式的下载图片按钮。
-* 以离屏克隆方式渲染官方预览卡片，导出 PNG，保留圆角与阴影。
-* 默认较高像素比，兼顾清晰度和体积。
-* 成功与失败均有轻量提示，不干扰页面操作。
-
-## 支持范围
-
-* 站点匹配
-
-  * `https://chatgpt.com/c/*`
-  * `https://chat.openai.com/c/*`
-* 浏览器与脚本管理器
-
-  * 推荐最新版 Chrome 或 Edge
-  * Tampermonkey
-
 ## 安装
 
 ### 一键安装
 
-先安装 Tampermonkey。然后打开下方 Raw 链接，浏览器会弹出安装对话框。
+先安装 Tampermonkey。然后打开下方链接，浏览器会弹出安装对话框。
 
-**Raw 安装链接：**
+**安装链接：**
 
   `https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js`
 
@@ -94,7 +69,7 @@ v1.1更新：增加了对携带图片的回答的支持：
 
 <img width="2432" height="1432" alt="屏幕截图 2025-08-26 190305" src="https://github.com/user-attachments/assets/75c4abc4-d43e-44d5-9fcd-6c26c1c2cb5a" />
 
-点击“总是允许此域名”
+点击“总是允许全部域名”
 
 ## 许可证
 
