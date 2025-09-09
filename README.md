@@ -1,16 +1,16 @@
 # ChatGPT 下载回答图片
 
-一个 Tampermonkey（油猴）脚本，在 ChatGPT 网页的分享弹窗中新增下载图片按钮，把当前回答以官方排版导出为图片，便于在无法访问分享链接或仅允许上传截图的平台分发与归档。
+一个 Tampermonkey脚本，在 ChatGPT 网页的分享弹窗中添加“下载图片”按钮，把当前回答以官方排版导出为图片，便于在无法访问分享链接或仅允许上传截图的平台转发。
 
 ## 安装
 
 ### 一键安装
 
-先安装 Tampermonkey。然后打开下方链接，浏览器会弹出安装对话框。
+先安装 Tampermonkey。然后打开下方 Raw 链接，浏览器会弹出安装对话框。
 
-**安装链接：**
+**Raw 安装链接：**
 
-  `https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js`
+ [点击跳转](https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js)
 
 ### 备用安装
 
@@ -22,36 +22,23 @@
 
 ## 权限与设置
 
-脚本使用 `GM_download` 保存图片，需要在 Tampermonkey 中允许下载能力，并将 `png` 后缀加入白名单。未启用、未在白名单或未授予权限时，Tampermonkey 可能报出相应错误。具体入口位于 Tampermonkey 的选项页。
+1.对于携带图片的回答的图片下载，首次使用会弹出如下提示：
 
-## 核心实现思路
+<img width="2432" height="1432" alt="屏幕截图 2025-08-26 190305" src="https://github.com/user-attachments/assets/75c4abc4-d43e-44d5-9fcd-6c26c1c2cb5a" />
 
-* 监听分享弹窗出现，定位复制链接按钮，克隆一枚同尺寸按钮插入其上方。
-* 将弹窗内容克隆到离屏容器，定向调整会影响截图的样式与蒙层。
-* 使用 `html-to-image` 将预览卡片渲染为 `Blob`，通过 `GM_download` 触发保存。
-* 完成后清理离屏节点，恢复按钮状态与提示文案。
+点击“总是允许此域名”即可正常下载。
+
+2.脚本使用 `GM_download` 保存图片，需要在 Tampermonkey 中允许下载能力，并将 `png` 后缀加入白名单。未启用、未在白名单或未授予权限时，Tampermonkey 可能报出相应错误。该设置 Tampermonkey 的选项页。
 
 ## 常见问题
 
-* 看不到下载图片按钮
-
-  * 确认已经点击了分享，并且弹窗内容加载完成。
-  * 页面结构若更新，可能需要升级脚本版本以适配新的选择器。
 * 点击后下载失败
 
   * 优先检查 Tampermonkey 是否启用下载功能并允许 `png` 后缀。
   * 查看控制台日志，脚本会打印失败原因。
-* 文件名或保存路径与预期不一致
-
-  * 受浏览器与下载模式差异影响，最终文件名可能被系统调整，保存路径通常为默认下载目录。
 * 图片过大或生成较慢
 
   * 默认像素比偏高以保证清晰度。需要更小体积时，可以在源码中将 `pixelRatio` 固定为 `2`。
-
-## 更新说明
-
-脚本头部已配置 `@downloadURL` 与 `@updateURL` 指向 Raw 原始文件地址。每次发布请提升 `@version`，Tampermonkey 会按该地址检查更新。
-建议同时在 GitHub Releases 打上对应的标签并简述改动点，便于回溯。
 
 ## 目录与文件
 
@@ -61,15 +48,6 @@ chatgpt-answer-image-dl/
 ├─ LICENSE
 └─ README.md
 ```
-
-v1.1更新：增加了对携带图片的回答的支持：
-
-
-首次使用会弹出这个：
-
-<img width="2432" height="1432" alt="屏幕截图 2025-08-26 190305" src="https://github.com/user-attachments/assets/75c4abc4-d43e-44d5-9fcd-6c26c1c2cb5a" />
-
-点击“总是允许全部域名”
 
 ## 许可证
 
