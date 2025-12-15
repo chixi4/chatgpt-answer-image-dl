@@ -14,8 +14,8 @@
 // @connect      *
 // @run-at       document-idle
 // @noframes
-// @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
-// @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/chatgpt-answer-image.user.js
+// @downloadURL  https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20%E5%9B%9E%E7%AD%94%E5%9B%BE%E7%89%87%E5%88%86%E4%BA%AB.user.js
+// @updateURL    https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20%E5%9B%9E%E7%AD%94%E5%9B%BE%E7%89%87%E5%88%86%E4%BA%AB.user.js
 // ==/UserScript==
 
 (function () {
