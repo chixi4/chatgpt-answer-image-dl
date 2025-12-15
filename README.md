@@ -2,7 +2,7 @@
 
 一个 Tampermonkey脚本，在 ChatGPT 网页的分享弹窗中添加“下载图片”按钮，把当前回答以官方排版导出为图片，便于在无法访问分享链接或仅允许上传截图的平台转发。
 
-## 安装（支持chorme、edge、手机端via）
+## 安装（支持chorme、edge、Firefox、手机端via）
 
 ### 一键安装
 
