@@ -2,7 +2,7 @@
 // @name         ChatGPT 回答图片分享
 // @namespace    https://github.com/chixi4/chatgpt-answer-image-dl
 // @version      2.0.0
-// @description  在 ChatGPT "共享"里,点击"下载图片"。优化跨平台兼容性，支持File System Access API
+// @description  在 ChatGPT "共享"里,点击"下载图片"。优化跨平台兼容性，支持chorme、edge、Firefox、手机端via
 // @author       Chixi
 // @license      MIT
 // @match        https://chatgpt.com/*
@@ -21,14 +21,6 @@
 (function () {
   'use strict';
 
-  // ============================================================
-  // v2.0.2 修复点
-  // 1) 回到简单的 cloneNode 算法（避免视觉回归）
-  // 2) 克隆后过滤动画类（避免图标旋转bug）
-  // 3) 用 CSS 强制禁用下载按钮动画
-  // 4) 保留移动端 Web Share 支持
-  // 5) 保留增强的弹窗识别逻辑
-  // ============================================================
 
   var DEBUG = true;
   var LOG_PREFIX = '[chatgpt-answer-image]';
@@ -82,6 +74,30 @@
       if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
     } catch (_) {}
     return false;
+  }
+
+  function isFirefox() {
+    try {
+      return /firefox/i.test(navigator.userAgent || '');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function computeSafePixelRatioForCapture(w, h) {
+    var dpr = 1;
+    try { dpr = window.devicePixelRatio || 1; } catch (_) { dpr = 1; }
+
+    // Firefox 更容易在大画布/高像素比下失败（常见 NS_ERROR_FAILURE / 内存限制）
+    var base = isFirefox() ? Math.max(1, dpr) : Math.max(2, dpr);
+    var maxDim = isFirefox() ? 8192 : 16384;
+
+    var limitByW = w ? (maxDim / w) : base;
+    var limitByH = h ? (maxDim / h) : base;
+    var pr = Math.min(base, limitByW, limitByH);
+    if (!isFinite(pr) || pr <= 0) pr = 1;
+
+    return pr;
   }
 
   // 过滤动画相关的 class
@@ -467,6 +483,66 @@
   // ============================================================
   // 把克隆节点里的 <img> 统一转为 data:URL，避免二次抓取
   // ============================================================
+  function dataURLToBlob(dataUrl) {
+    var s = String(dataUrl || '');
+    var m = s.match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+    if (!m) throw new Error('invalid data url');
+    var mime = m[1] || 'application/octet-stream';
+    var isB64 = !!m[2];
+    var data = m[3] || '';
+    if (!isB64) {
+      return new Blob([decodeURIComponent(data)], { type: mime });
+    }
+    var bin = atob(data);
+    var len = bin.length;
+    var bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
+  async function renderNodeToBlobBestEffort(h2i, node, options) {
+    var lastErr = null;
+
+    // 1) 优先尝试 toBlob
+    try {
+      var b1 = await h2i.toBlob(node, options);
+      if (b1) return b1;
+    } catch (e1) {
+      lastErr = e1;
+      warn('renderNodeToBlobBestEffort: toBlob failed, trying toPng', e1);
+    }
+
+    // 2) Firefox降级：尝试 toPng (返回data URL)
+    try {
+      if (typeof h2i.toPng === 'function') {
+        var pngUrl = await h2i.toPng(node, options);
+        if (pngUrl) return dataURLToBlob(pngUrl);
+      }
+    } catch (e2) {
+      lastErr = e2;
+      warn('renderNodeToBlobBestEffort: toPng failed, trying toCanvas', e2);
+    }
+
+    // 3) 最后尝试 toCanvas
+    try {
+      if (typeof h2i.toCanvas === 'function') {
+        var canvas = await h2i.toCanvas(node, options);
+        if (canvas && typeof canvas.toBlob === 'function') {
+          var b3 = await new Promise(function (resolve) {
+            try { canvas.toBlob(resolve); } catch (_) { resolve(null); }
+          });
+          if (b3) return b3;
+        }
+      }
+    } catch (e3) {
+      lastErr = e3;
+      warn('renderNodeToBlobBestEffort: toCanvas failed', e3);
+    }
+
+    if (lastErr) throw lastErr;
+    throw new Error('生成图片失败：无法导出 Blob');
+  }
+
   async function deCrossOriginAllImages(scopeEl, transparentPx) {
     var imgs = Array.prototype.slice.call(scopeEl.querySelectorAll('img'));
     if (!imgs.length) return;
@@ -821,10 +897,16 @@
       var h2i = typeof htmlToImage !== 'undefined' ? htmlToImage : (window.htmlToImage || null);
       if (!h2i) throw new Error('html-to-image 未加载');
 
-      log('capture: toBlob', { w: w, h: h, dpr: window.devicePixelRatio || 1 });
+      var pixelRatio = computeSafePixelRatioForCapture(w, h);
+      log('capture: render', {
+        w: w,
+        h: h,
+        pixelRatio: pixelRatio,
+        firefox: isFirefox()
+      });
 
-      var blob = await h2i.toBlob(clonedCard, {
-        pixelRatio: Math.max(2, window.devicePixelRatio || 1),
+      var renderOpts = {
+        pixelRatio: pixelRatio,
         cacheBust: true,
         backgroundColor: null,
         width: w,
@@ -837,7 +919,17 @@
           if (tag === 'SCRIPT' || tag === 'STYLE') return false;
           return true;
         }
-      });
+      };
+
+      // Firefox: html-to-image 1.11.13 在扫描/内联跨域样式表时更容易崩溃
+      // 规避：禁用字体内联（不触碰跨域 cssRules）
+      if (isFirefox()) {
+        log('capture: applying Firefox workarounds (skipFonts)');
+        renderOpts.skipFonts = true;
+        renderOpts.fontEmbedCSS = '';
+      }
+
+      var blob = await renderNodeToBlobBestEffort(h2i, clonedCard, renderOpts);
 
       if (!blob) throw new Error('生成图片失败：返回空 Blob');
 
