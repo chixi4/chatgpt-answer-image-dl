@@ -6,7 +6,7 @@
 
 ### 一键安装
 
-[点击下载](https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20回答图片分享.user.js)
+[点击下载](https://raw.githubusercontent.com/chixi4/chatgpt-answer-image-dl/main/ChatGPT%20下载回答图片.user.js)
 
 ### 备用安装
 
